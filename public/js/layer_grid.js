@@ -12,6 +12,12 @@ module.exports = function() {
     layer.table = zoom > maxZoomKey ?
         layer.arrayZoom[maxZoomKey] : zoom < zoomKeys[0] ?
             null : layer.arrayZoom[zoom];
+
+    let properties = [];
+
+    Object.values(layer.queryFields).map(entry => {
+        properties.push(entry[0]);
+    });
     
     // Make drawer opaque if no table present.
     layer.drawer.style.opacity = !layer.table? 0.4: 1;
@@ -25,7 +31,7 @@ module.exports = function() {
         // Open & send vector.xhr;
         let bounds = global._xyz.map.getBounds();
 
-        layer.xhr.open('GET', global._xyz.host + '/api/grid/get?' + utils.paramString({
+        let url_params = {
             locale: _xyz.locale,
             layer: layer.layer,
             table: layer.table,
@@ -36,7 +42,27 @@ module.exports = function() {
             east: bounds.getEast(),
             north: bounds.getNorth(),
             token: global._xyz.token
-        }));
+        }
+
+        if(properties) url_params.properties = properties.join(",");
+
+        console.log(url_params);
+
+        layer.xhr.open('GET', global._xyz.host + '/api/grid/get?' + utils.paramString(url_params));
+
+        /*layer.xhr.open('GET', global._xyz.host + '/api/grid/get?' + utils.paramString({
+            locale: _xyz.locale,
+            layer: layer.layer,
+            table: layer.table,
+            size: layer.grid_size,
+            color: layer.grid_color,
+            properties: properties ? properties.join(",") : "",
+            west: bounds.getWest(),
+            south: bounds.getSouth(),
+            east: bounds.getEast(),
+            north: bounds.getNorth(),
+            token: global._xyz.token
+        }));*/
 
         // Draw layer on load event.
         layer.xhr.onload = e => {
@@ -45,6 +71,8 @@ module.exports = function() {
 
                 // Check for existing layer and remove from map.
                 if (layer.L) global._xyz.map.removeLayer(layer.L);
+
+                console.log(e.target.responseText);
 
                 // Add geoJSON feature collection to the map.
                 layer.L = new L.geoJson(processGrid(JSON.parse(e.target.responseText)), {
